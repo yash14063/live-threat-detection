@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreatSense AI-DVR | Live Demo</title>
+    <style>
+        :root {
+            --bg-dark: #0f172a;
+            --panel-bg: rgba(30, 41, 59, 0.7);
+            --neon-green: #10b981;
+            --neon-yellow: #eab308;
+            --neon-red: #ef4444;
+            --neon-cyan: #06b6d4;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+        }
+
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            font-family: 'Courier New', Courier, monospace;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(6, 182, 212, 0.3);
+            margin-bottom: 20px;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--neon-cyan);
+            text-shadow: 0 0 10px rgba(6, 182, 212, 0.5);
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .pulse {
+            width: 10px;
+            height: 10px;
+            background-color: var(--neon-green);
+            border-radius: 50%;
+            animation: blink 1s infinite;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            flex: 1;
+        }
+
+        /* Video Feed Panel */
+        .video-container {
+            background: #000;
+            border: 1px solid rgba(6, 182, 212, 0.2);
+            border-radius: 8px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.8);
+        }
+
+        .grid-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-image: linear-gradient(rgba(6, 182, 212, 0.1) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(6, 182, 212, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+            pointer-events: none;
+        }
+
+        .cam-label {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            color: var(--neon-cyan);
+            font-size: 0.9rem;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-left: 3px solid var(--neon-cyan);
+        }
+
+        /* Target Bounding Box */
+        .target-box {
+            position: absolute;
+            border: 2px solid var(--neon-green);
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.5);
+            transition: all 1.5s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+        }
+
+        .target-label {
+            position: absolute;
+            top: -25px;
+            left: -2px;
+            background: var(--neon-green);
+            color: #000;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            white-space: nowrap;
+            transition: all 1.5s ease;
+        }
+
+        .skeleton {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            opacity: 0.7;
+        }
+
+        /* False Positive Tags */
+        .false-positive {
+            position: absolute;
+            border: 1px solid var(--text-muted);
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            padding: 2px 5px;
+            opacity: 0;
+            transition: opacity 0.5s;
+        }
+
+        /* Analytics Panel */
+        .analytics {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel-title {
+            color: var(--neon-cyan);
+            font-size: 0.9rem;
+            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Threat Score Meter */
+        .meter-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 8px solid var(--neon-green);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: var(--neon-green);
+            text-shadow: 0 0 10px var(--neon-green);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.2);
+            transition: all 1s ease;
+        }
+
+        /* Timeline */
+        .timeline {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            max-height: 250px;
+            overflow-y: auto;
+        }
+
+        .timeline li {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 15px;
+            font-size: 0.85rem;
+            border-left: 2px solid rgba(255,255,255,0.1);
+        }
+
+        .timeline li::before {
+            content: '';
+            position: absolute;
+            left: -6px;
+            top: 0;
+            width: 10px;
+            height: 10px;
+            background: var(--neon-cyan);
+            border-radius: 50%;
+        }
+
+        .time-badge {
+            color: var(--text-muted);
+            margin-right: 10px;
+        }
+
+        /* Alert Overlay */
+        .red-alert-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(239, 68, 68, 0.15);
+            pointer-events: none;
+            opacity: 0;
+            z-index: 100;
+            box-shadow: inset 0 0 100px rgba(239, 68, 68, 0.8);
+            transition: opacity 0.3s;
+        }
+
+        .alert-popup {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--neon-red);
+            color: white;
+            padding: 10px 30px;
+            font-weight: bold;
+            border-radius: 4px;
+            font-size: 1.2rem;
+            opacity: 0;
+            transition: opacity 0.3s;
+            z-index: 101;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+        }
+
+        .btn-start {
+            background: transparent;
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 8px 16px;
+            cursor: pointer;
+            font-family: inherit;
+            border-radius: 4px;
+            transition: 0.3s;
+        }
+
+        .btn-start:hover {
+            background: var(--neon-cyan);
+            color: #000;
+        }
+
+        @keyframes blink {
+            0% { opacity: 1; }
+            50% { opacity: 0.3; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">ThreatSense AI-DVR</div>
+        <div>
+            <button class="btn-start" onclick="startDemo()">Run Simulation Sequence</button>
+        </div>
+        <div class="status">
+            <span class="pulse" id="sys-pulse"></span>
+            <span id="sys-status">SYSTEM ACTIVE // MONITORING</span>
+        </div>
+    </header>
+
+    <div class="dashboard">
+        <div class="video-container">
+            <div class="grid-overlay"></div>
+            <div class="cam-label">CAM 04: WAREHOUSE SECTOR B</div>
+            
+            <div id="target" class="target-box" style="width: 100px; height: 250px; left: 10%; top: 30%; opacity: 0;">
+                <div id="target-lbl" class="target-label">ID:402 [Normal]</div>
+                <div class="skeleton">
+                    <div style="position: absolute; top: 10%; left: 40%; width: 20px; height: 20px; border: 1px solid rgba(255,255,255,0.8); border-radius: 50%;"></div>
+                    <div style="position: absolute; top: 20%; left: 50%; width: 2px; height: 80px; background: rgba(255,255,255,0.5);"></div>
+                </div>
+            </div>
+
+            <div id="fp-shadow" class="false-positive" style="bottom: 20%; left: 30%; width: 80px; height: 40px;">Shadow &rarr; Ignored</div>
+            <div id="fp-dog" class="false-positive" style="bottom: 10%; right: 20%; width: 60px; height: 40px;">Animal &rarr; Ignored</div>
+        </div>
+
+        <div class="analytics">
+            <div class="panel">
+                <div class="panel-title">Real-Time Threat Score</div>
+                <div class="meter-container">
+                    <div id="score-circle" class="score-circle">00</div>
+                    <div style="margin-top: 15px; font-size: 0.8rem; color: var(--text-muted);" id="intent-label">Awaiting subject...</div>
+                </div>
+            </div>
+
+            <div class="panel" style="flex: 1;">
+                <div class="panel-title">Event Timeline & Auto-Log</div>
+                <ul class="timeline" id="timeline">
+                    <li><span class="time-badge">14:00:00</span> System Initialized</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="red-alert" class="red-alert-overlay"></div>
+    <div id="alert-popup" class="alert-popup">CRITICAL THREAT DETECTED - AUTO-SAVING EVENT</div>
+
+    <script>
+        const target = document.getElementById('target');
+        const targetLbl = document.getElementById('target-lbl');
+        const scoreCircle = document.getElementById('score-circle');
+        const intentLabel = document.getElementById('intent-label');
+        const timeline = document.getElementById('timeline');
+        const fpShadow = document.getElementById('fp-shadow');
+        const fpDog = document.getElementById('fp-dog');
+        const redAlert = document.getElementById('red-alert');
+        const alertPopup = document.getElementById('alert-popup');
+        const sysPulse = document.getElementById('sys-pulse');
+
+        function addLog(message, color) {
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0];
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="time-badge">${timeStr}</span> <span style="color: ${color}">${message}</span>`;
+            timeline.prepend(li);
+        }
+
+        function updateUI(score, label, color, leftPos, topPos) {
+            // Update Bounding Box
+            target.style.opacity = '1';
+            target.style.left = leftPos;
+            target.style.top = topPos;
+            target.style.borderColor = color;
+            target.style.boxShadow = `0 0 15px ${color}`;
+            
+            targetLbl.innerText = label;
+            targetLbl.style.background = color;
+            targetLbl.style.color = color === 'var(--neon-green)' ? '#000' : '#fff';
+
+            // Update Score Meter
+            scoreCircle.innerText = score;
+            scoreCircle.style.borderColor = color;
+            scoreCircle.style.color = color;
+            scoreCircle.style.textShadow = `0 0 10px ${color}`;
+            scoreCircle.style.boxShadow = `0 0 20px ${color}40`;
+            
+            intentLabel.innerText = `Intent Analysis: ${label}`;
+
+            addLog(`Subject updated: ${label} | Score: ${score}`, color);
+        }
+
+        function triggerRedAlert() {
+            redAlert.style.opacity = '1';
+            alertPopup.style.opacity = '1';
+            sysPulse.style.backgroundColor = 'var(--neon-red)';
+            
+            // Flash effect
+            let flash = setInterval(() => {
+                redAlert.style.opacity = redAlert.style.opacity === '1' ? '0.2' : '1';
+            }, 500);
+
+            setTimeout(() => {
+                clearInterval(flash);
+                redAlert.style.opacity = '0.1';
+            }, 3000);
+        }
+
+        function startDemo() {
+            timeline.innerHTML = '';
+            addLog("Simulation started. Monitoring area.", "var(--text-muted)");
+            target.style.opacity = '0';
+            redAlert.style.opacity = '0';
+            alertPopup.style.opacity = '0';
+            sysPulse.style.backgroundColor = 'var(--neon-green)';
+
+            // Sequence 1: Normal Entry (T=1s)
+            setTimeout(() => {
+                updateUI(10, "ID:402 [Normal]", "var(--neon-green)", "15%", "30%");
+            }, 1000);
+
+            // Sequence 2: False Positive Shadow (T=3s)
+            setTimeout(() => {
+                fpShadow.style.opacity = '1';
+                addLog("CNN Filter: Shadow anomaly ignored.", "var(--text-muted)");
+                setTimeout(() => fpShadow.style.opacity = '0', 2000);
+            }, 3000);
+
+            // Sequence 3: Loitering (T=5s)
+            setTimeout(() => {
+                updateUI(35, "ID:402 [Loitering]", "var(--neon-yellow)", "40%", "32%");
+            }, 5000);
+
+            // Sequence 4: False Positive Dog (T=7s)
+            setTimeout(() => {
+                fpDog.style.opacity = '1';
+                addLog("CNN Filter: Canine detected -> ignored.", "var(--text-muted)");
+                setTimeout(() => fpDog.style.opacity = '0', 2000);
+            }, 7000);
+
+            // Sequence 5: Scanning/Hiding Face - Red Alert (T=9s)
+            setTimeout(() => {
+                updateUI(65, "ID:402 [Face Concealed]", "var(--neon-red)", "55%", "35%");
+                triggerRedAlert();
+                addLog("RED ALERT: Escalation threshold exceeded. Auto-recording saved.", "var(--neon-red)");
+            }, 9000);
+        }
+    </script>
+</body>
+</html>
