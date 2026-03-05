@@ -217,24 +217,23 @@
         }
 
        <script type="module">
-        // 1. The 'import' statements work now because we used type="module"
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
         // 🚨 REPLACE THIS WITH YOUR ACTUAL FIREBASE CONFIG 🚨
         const firebaseConfig = {
-            apiKey: "AIzaSyCWMCWJtzn7zetatFuW9ioynlkesOgtQ60",
-            authDomain: "trinetra-ai-83f3b.firebaseapp.com",
-            projectId: "trinetra-ai-83f3b",
-            storageBucket: "trinetra-ai-83f3b.firebasestorage.app",
-            messagingSenderId: "774580860699",
-            appId: "1:774580860699:web:dbf2a99eb02965cfb305be"
+            apiKey: "YOUR_API_KEY",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "123456789",
+            appId: "1:123456789:web:abcdef"
         };
 
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
 
-        // 2. We use 'window.setupRecaptcha' so the HTML can see it through the module wall!
+        // Setup Invisible reCAPTCHA
         window.setupRecaptcha = function() {
             if (!window.recaptchaVerifier) {
                 window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
@@ -246,7 +245,7 @@
             }
         };
 
-        // We use 'window.sendOTP' so your <button onclick="sendOTP()"> finds it!
+        // Send OTP Function
         window.sendOTP = function() {
             const phoneInput = document.getElementById('input-phone').value.trim();
             
@@ -268,12 +267,12 @@
                     console.log("Real SMS transmitted successfully.");
                 }).catch((error) => {
                     console.error("SMS not sent", error);
-                    alert("Error sending SMS. Ensure Phone Auth is enabled in Firebase Console and domains are authorized.");
+                    alert("Error sending SMS. Check Firebase Console configuration.");
                     if(window.recaptchaVerifier) window.recaptchaVerifier.render().then(w => window.recaptchaVerifier.reset(w));
                 });
         };
 
-        // We use 'window.verifyOTP' so your <button onclick="verifyOTP()"> finds it!
+        // Verify OTP Function
         window.verifyOTP = function() {
             const code = document.getElementById('input-otp').value.trim();
             
@@ -288,8 +287,7 @@
                 document.getElementById('header-status').innerText = "STATUS: AUTHENTICATED // SECURE NODE";
                 document.getElementById('header-status').style.color = "var(--green)";
                 
-                // This triggers the switch to the next screen!
-                // Make sure your loadAIModels() and switchView() functions are available globally too!
+                // Switch to the next screen!
                 if(typeof window.loadAIModels === "function") window.loadAIModels();
                 if(typeof window.switchView === "function") window.switchView('mode');
                 
@@ -298,7 +296,8 @@
                 alert("Authentication Failed: The code is incorrect or expired.");
             });
         };
-    </script>
+    
+    
   
 
         // --- 2. MODE SELECTION ---
