@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ThreatSense OS | Dual-Core Demo</title>
+    <title>ThreatSense OS | Enterprise Console</title>
     <link rel="icon" href="data:,">
-    
     <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     
     <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
@@ -14,83 +13,61 @@
 
     <style>
         :root {
-            --bg-base: #020617;
-            --panel-bg: rgba(15, 23, 42, 0.7);
-            --cyan: #06b6d4;
-            --green: #10b981;
-            --red: #ef4444;
-            --muted: #64748b;
-            --text-main: #f8fafc;
+            --bg-base: #020617; --panel-bg: rgba(15, 23, 42, 0.8);
+            --cyan: #06b6d4; --green: #10b981; --red: #ef4444;
+            --muted: #64748b; --text-main: #f8fafc;
         }
 
         body {
-            margin: 0; padding: 20px; background: var(--bg-base); color: var(--text-main);
-            font-family: 'Rajdhani', sans-serif; height: 100vh; display: flex; flex-direction: column;
-            box-sizing: border-box; overflow: hidden;
+            margin: 0; background: var(--bg-base); color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif; height: 100vh; overflow: hidden;
+            display: flex; flex-direction: column;
         }
 
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            border-bottom: 1px solid rgba(6, 182, 212, 0.3); padding-bottom: 15px; margin-bottom: 20px;
-        }
+        /* UTILITIES */
+        .hidden { display: none !important; }
+        .glass-panel { background: var(--panel-bg); backdrop-filter: blur(10px); border: 1px solid rgba(6, 182, 212, 0.3); border-radius: 8px; box-shadow: 0 0 20px rgba(0,0,0,0.8); }
+        .btn { background: rgba(6, 182, 212, 0.1); border: 1px solid var(--cyan); color: var(--cyan); padding: 10px 20px; font-family: 'Share Tech Mono'; font-weight: bold; cursor: pointer; text-transform: uppercase; transition: 0.3s; border-radius: 4px; }
+        .btn:hover { background: var(--cyan); color: #000; box-shadow: 0 0 15px var(--cyan); }
+        .input-field { background: rgba(0,0,0,0.5); border: 1px solid var(--muted); color: #fff; padding: 12px; font-family: 'Share Tech Mono'; font-size: 1.1rem; width: 100%; box-sizing: border-box; outline: none; transition: 0.3s; margin-bottom: 15px; }
+        .input-field:focus { border-color: var(--cyan); box-shadow: 0 0 10px rgba(6, 182, 212, 0.2); }
 
-        .logo { font-size: 2.2rem; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 1px; }
-        .logo span { color: var(--text-main); font-weight: 400; }
+        /* VIEW CONTAINERS */
+        .view-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: opacity 0.5s ease; }
+
+        /* HEADER (Shared across views) */
+        header { width: 100%; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(6, 182, 212, 0.3); position: fixed; top: 0; left: 0; z-index: 100; box-sizing: border-box; background: rgba(2, 6, 23, 0.9); }
+        .logo { font-size: 1.8rem; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 2px; }
+
+        /* 1. LOGIN VIEW */
+        .login-box { width: 400px; padding: 30px; text-align: center; }
+        .login-box h2 { color: var(--cyan); margin-top: 0; }
+
+        /* 2. MODE SELECT VIEW */
+        .mode-container { display: flex; gap: 30px; }
+        .mode-card { width: 300px; padding: 30px; text-align: center; cursor: pointer; transition: 0.3s; border: 1px solid var(--muted); }
+        .mode-card:hover { border-color: var(--cyan); box-shadow: 0 0 20px rgba(6, 182, 212, 0.2); transform: translateY(-5px); }
+        .mode-card h3 { color: var(--cyan); font-size: 1.5rem; }
+
+        /* 3. CALIBRATION VIEWS */
+        .calibration-container { width: 800px; max-width: 90%; text-align: center; margin-top: 60px; }
+        .draw-area { position: relative; width: 100%; height: 450px; background: #000; border: 2px solid var(--cyan); margin-bottom: 20px; overflow: hidden; }
+        #calib-video, #calib-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        #calib-video { transform: scaleX(-1); }
+        #calib-canvas { z-index: 10; cursor: crosshair; }
+
+        /* 4. DASHBOARD VIEW */
+        .dashboard-layout { display: grid; grid-template-columns: 2.5fr 1fr; gap: 20px; width: 100%; height: 100%; padding: 80px 20px 20px 20px; box-sizing: border-box; }
+        .video-wrapper { position: relative; background: #000; border: 1px solid var(--cyan); border-radius: 8px; overflow: hidden; }
+        #dash-video, #dash-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; }
+        #dash-video { transform: scaleX(-1); }
+        #dash-canvas { z-index: 10; }
+        .side-panel { display: flex; flex-direction: column; gap: 15px; }
+        .data-card { padding: 15px; }
+        .data-value { font-size: 2.5rem; font-weight: 700; color: var(--green); text-shadow: 0 0 10px var(--green); }
         
-        .operator-tag { font-family: 'Share Tech Mono', monospace; font-size: 0.9rem; color: var(--cyan); background: rgba(6, 182, 212, 0.1); padding: 5px 15px; border: 1px solid var(--cyan); border-radius: 4px; }
-
-        .layout { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; flex: 1; min-height: 0; }
-
-        /* CAMERA SECTION */
-        .video-wrapper {
-            position: relative; background: #000; border: 1px solid var(--cyan);
-            border-radius: 8px; overflow: hidden; box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            transition: all 0.5s ease;
-        }
-
-        /* The Night Vision Effect for Home Mode */
-        .night-vision #webcam {
-            filter: grayscale(100%) contrast(120%) brightness(80%) sepia(40%) hue-rotate(80deg);
-        }
-
-        #webcam, #ai-canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;
-        }
-        #webcam { transform: scaleX(-1); }
-        #ai-canvas { z-index: 10; }
-
-        .cam-label {
-            position: absolute; top: 20px; left: 20px; z-index: 20;
-            font-family: 'Share Tech Mono', monospace; color: #fff; background: rgba(0,0,0,0.8);
-            padding: 5px 10px; border-left: 3px solid var(--cyan);
-        }
-
-        /* CONTROL PANEL */
-        .controls { display: flex; flex-direction: column; gap: 15px; }
-
-        .btn-mode {
-            background: rgba(15, 23, 42, 0.8); border: 1px solid var(--muted); color: var(--muted);
-            padding: 15px; font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 600;
-            text-transform: uppercase; cursor: pointer; border-radius: 6px; transition: 0.3s;
-            text-align: left; position: relative; overflow: hidden;
-        }
-        .btn-mode:hover { border-color: var(--cyan); color: var(--cyan); }
-        .btn-mode.active { background: rgba(6, 182, 212, 0.1); border-color: var(--cyan); color: var(--cyan); box-shadow: 0 0 15px rgba(6, 182, 212, 0.3); }
-
-        .dashboard-card {
-            background: var(--panel-bg); border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px; padding: 15px; flex: 1; display: flex; flex-direction: column;
-        }
-
-        .card-header { font-size: 1.1rem; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px; color: var(--cyan); }
-
-        .status-display { text-align: center; margin: 10px 0; }
-        .status-text { font-size: 2.5rem; font-weight: 700; color: var(--green); text-shadow: 0 0 10px var(--green); }
-        
-        .log-list { list-style: none; padding: 0; margin: 0; font-family: 'Share Tech Mono', monospace; font-size: 0.8rem; overflow-y: auto; flex: 1; }
-        .log-list li { margin-bottom: 6px; color: var(--text-main); }
-        .log-list li.warn { color: var(--red); font-weight: bold; }
-        .log-list li.ignored { color: var(--muted); }
+        /* Night vision class */
+        .night-vision #dash-video { filter: grayscale(100%) contrast(120%) brightness(80%) sepia(40%) hue-rotate(80deg); }
 
     </style>
 </head>
@@ -98,218 +75,465 @@
 
     <header>
         <div class="logo">ThreatSense<span>.OS</span></div>
-        <div class="operator-tag">OP: Y. SAOKHEDE // SYS: ONLINE</div>
+        <div style="font-family: 'Share Tech Mono'; color: var(--muted);" id="header-status">STATUS: UNAUTHORIZED</div>
     </header>
 
-    <div class="layout">
-        <div class="video-wrapper" id="video-wrapper">
-            <video id="webcam" autoplay playsinline muted></video>
-            <canvas id="ai-canvas"></canvas>
-            <div id="cam-label" class="cam-label">CAM 01: INITIALIZING...</div>
+    <div id="view-login" class="view-section">
+        <div class="glass-panel login-box">
+            <h2>OPERATOR AUTHENTICATION</h2>
+            <p style="color: var(--muted); margin-bottom: 20px;">Enter secure mobile identifier to receive Access OTP.</p>
+            
+            <div id="step-phone">
+                <input type="tel" id="input-phone" class="input-field" placeholder="+1 (555) 000-0000">
+                <button class="btn" style="width: 100%;" onclick="sendOTP()">Request OTP</button>
+            </div>
+
+            <div id="step-otp" class="hidden">
+                <p style="color: var(--green); font-family: 'Share Tech Mono'; font-size: 0.8rem;">>> OTP transmitted via encrypted SMS.</p>
+                <input type="text" id="input-otp" class="input-field" placeholder="Enter 6-digit OTP" maxlength="6">
+                <button class="btn" style="width: 100%;" onclick="verifyOTP()">Verify & Login</button>
+            </div>
         </div>
+    </div>
 
-        <div class="controls">
-            <button class="btn-mode" id="btn-home" onclick="setMode('HOME')">
-                Mission 1: Residential Perimeter (Night)
-                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 5px; font-family: 'Share Tech Mono';">Filter: Non-Human | Trigger: Intruder</div>
-            </button>
+    <div id="view-mode" class="view-section hidden">
+        <h2 style="color: #fff; margin-bottom: 40px; font-size: 2rem;">SELECT DEPLOYMENT PROTOCOL</h2>
+        <div class="mode-container">
+            <div class="glass-panel mode-card" onclick="selectMode('HOME')">
+                <h3>RESIDENTIAL NODE</h3>
+                <p style="color: var(--muted);">Night-vision enabled. Geofenced intruder detection. Ignores animals/shadows.</p>
+            </div>
+            <div class="glass-panel mode-card" onclick="selectMode('PUBLIC')">
+                <h3>PUBLIC CROWD NODE</h3>
+                <p style="color: var(--muted);">Crowd density tracking. Biomechanical violence & aggression detection.</p>
+            </div>
+        </div>
+    </div>
 
-            <button class="btn-mode" id="btn-public" onclick="setMode('PUBLIC')">
-                Mission 2: Public Space / Crowd
-                <div style="font-size: 0.8rem; color: var(--muted); margin-top: 5px; font-family: 'Share Tech Mono';">Filter: Normal Movement | Trigger: Violence</div>
-            </button>
+    <div id="view-setup-home" class="view-section hidden">
+        <div class="calibration-container">
+            <h2 style="color: var(--cyan); margin-top: 0;">CALIBRATE RESTRICTED ZONE</h2>
+            <p>Click and drag on the camera feed to draw your secure home boundary.</p>
+            <div class="draw-area">
+                <video id="calib-video" autoplay playsinline muted></video>
+                <canvas id="calib-canvas"></canvas>
+            </div>
+            <button class="btn" onclick="deployDashboard()">Confirm Zone & Deploy System</button>
+        </div>
+    </div>
 
-            <div class="dashboard-card">
-                <div class="card-header">System Status</div>
-                <div class="status-display">
-                    <div id="status-text" class="status-text">STANDBY</div>
+    <div id="view-setup-public" class="view-section hidden">
+        <div class="glass-panel login-box" style="width: 500px;">
+            <h2 style="color: var(--cyan); margin-top: 0;">SET PUBLIC CONTEXT</h2>
+            <p style="color: var(--muted);">Select the nature of the public gathering to calibrate AI threat thresholds.</p>
+            
+            <select id="event-type" class="input-field" style="margin-bottom: 30px;">
+                <option value="Transit Station">Transit Hub / Station</option>
+                <option value="Concert / Festival">Concert / Festival</option>
+                <option value="Political Protest">Political Protest / Rally</option>
+                <option value="Shopping Mall">Retail / Shopping Mall</option>
+            </select>
+
+            <button class="btn" style="width: 100%;" onclick="deployDashboard()">Deploy Crowd Analytics</button>
+        </div>
+    </div>
+
+    <div id="view-dashboard" class="view-section hidden" style="align-items: flex-start; justify-content: flex-start;">
+        <div class="dashboard-layout">
+            
+            <div class="video-wrapper" id="dash-wrapper">
+                <video id="dash-video" autoplay playsinline muted></video>
+                <canvas id="dash-canvas"></canvas>
+                <div style="position: absolute; top: 15px; left: 15px; background: rgba(0,0,0,0.8); padding: 5px 10px; border-left: 3px solid var(--cyan); font-family: 'Share Tech Mono'; z-index: 20;" id="dash-label">CAM 01: ACTIVE</div>
+            </div>
+
+            <div class="side-panel">
+                <div class="glass-panel data-card">
+                    <div style="color: var(--cyan); font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 5px;">SYSTEM STATUS</div>
+                    <div id="dash-status" class="data-value">SECURE</div>
+                    <div id="dash-subtext" style="color: var(--muted); font-size: 0.9rem; margin-top: 5px;">Monitoring active...</div>
                 </div>
-                <div class="card-header" style="margin-top: 20px;">Event Log</div>
-                <ul class="log-list" id="log-list">
-                    <li>System ready. Select a mission mode.</li>
-                </ul>
+
+                <div class="glass-panel data-card hidden" id="crowd-card">
+                    <div style="color: var(--cyan); font-weight: bold; margin-bottom: 10px;">CROWD DENSITY</div>
+                    <div style="display: flex; align-items: baseline; gap: 10px;">
+                        <div id="crowd-count" class="data-value" style="color: var(--cyan); text-shadow: 0 0 10px var(--cyan);">0</div>
+                        <div style="color: var(--muted);">Persons Detected</div>
+                    </div>
+                </div>
+
+                <div class="glass-panel data-card" style="flex: 1;">
+                    <div style="color: var(--cyan); font-weight: bold; margin-bottom: 10px;">AI EVENT LOG</div>
+                    <div id="dash-log" style="font-family: 'Share Tech Mono'; font-size: 0.8rem; color: #fff; height: 250px; overflow-y: auto;">
+                        <div style="color: var(--muted);">> System initialized.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
     <script>
-        const video = document.getElementById('webcam');
-        const canvas = document.getElementById('ai-canvas');
-        const ctx = canvas.getContext('2d');
-        const videoWrapper = document.getElementById('video-wrapper');
-        const camLabel = document.getElementById('cam-label');
-        const statusText = document.getElementById('status-text');
-        const logList = document.getElementById('log-list');
-        
-        let currentMode = 'NONE'; // 'HOME' or 'PUBLIC'
+        // --- GLOBAL STATE ---
+        let currentMode = '';
+        let eventContext = '';
+        let geofence = null;
         let objectModel, poseModel;
-        let isLooping = false;
+        let isDrawing = false, startX, startY;
+        let streamActive = false;
 
-        function addLog(msg, type = 'normal') {
-            const li = document.createElement('li');
-            li.innerText = `[${new Date().toLocaleTimeString()}] ${msg}`;
-            if(type) li.className = type;
-            logList.prepend(li);
-        }
-
-        // Initialize WebCam
-        navigator.mediaDevices.getUserMedia({ video: { width: 800, height: 600 } })
-            .then(stream => {
-                video.srcObject = stream;
-                video.onloadedmetadata = () => {
-                    video.play();
-                    canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-                    addLog("Optical stream connected.");
-                    loadModels();
-                };
-            });
-
-        // Load AI Models
-        async function loadModels() {
-            addLog("Loading Neural Networks...");
-            objectModel = await cocoSsd.load(); // For Home Mode
-            await tf.setBackend('webgl');
-            poseModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING }); // For Public Mode
-            addLog("All Edge Models Ready. Select Mission.");
-        }
-
-        // Switch Modes
-        function setMode(mode) {
-            currentMode = mode;
-            document.getElementById('btn-home').className = mode === 'HOME' ? 'btn-mode active' : 'btn-mode';
-            document.getElementById('btn-public').className = mode === 'PUBLIC' ? 'btn-mode active' : 'btn-mode';
+        // --- EDGE-TO-CLOUD CONNECTION ---
+        let ws;
+        function connectBackend() {
+            // Connect to the local Python server
+            ws = new WebSocket('ws://localhost:8000/ws/stream');
             
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            statusText.innerText = "SCANNING";
-            statusText.style.color = "var(--cyan)";
+            ws.onopen = () => logEvent("Secure WebSocket tunnel established to Python Cloud.", "var(--green)");
+            ws.onclose = () => logEvent("Warning: Cloud connection lost. Running locally.", "var(--red)");
+        }
+        
+        // Call this when the app loads
+        connectBackend();
 
-            if (mode === 'HOME') {
-                videoWrapper.classList.add('night-vision');
-                camLabel.innerText = "CAM 01: PRIVATE RESIDENCE [NIGHT MODE]";
-                camLabel.style.borderLeftColor = "var(--green)";
-                addLog("Switched to Home Security. Object filtering active.");
-            } else {
-                videoWrapper.classList.remove('night-vision');
-                camLabel.innerText = "CAM 02: METRO STATION [CROWD MONITOR]";
-                camLabel.style.borderLeftColor = "var(--cyan)";
-                addLog("Switched to Public Security. Biomechanical tracking active.");
-            }
+        
+        // --- DOM ELEMENTS ---
+        const views = {
+            login: document.getElementById('view-login'),
+            mode: document.getElementById('view-mode'),
+            setupHome: document.getElementById('view-setup-home'),
+            setupPublic: document.getElementById('view-setup-public'),
+            dashboard: document.getElementById('view-dashboard')
+        };
+        const headerStatus = document.getElementById('header-status');
+        const dashLog = document.getElementById('dash-log');
 
-            if (!isLooping) {
-                isLooping = true;
-                processFrame();
-            }
+        // --- NAVIGATION LOGIC ---
+        function switchView(viewName) {
+            Object.values(views).forEach(v => v.classList.add('hidden'));
+            views[viewName].classList.remove('hidden');
         }
 
-        async function processFrame() {
-            if (currentMode === 'NONE') return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            if (currentMode === 'HOME') {
-                await runHomeSecurity();
-            } else if (currentMode === 'PUBLIC') {
-                await runPublicSecurity();
-            }
-
-            if (isLooping) requestAnimationFrame(processFrame);
+        function logEvent(msg, color="var(--muted)") {
+            dashLog.innerHTML = `<div style="color: ${color}; margin-bottom: 5px;">[${new Date().toLocaleTimeString()}] ${msg}</div>` + dashLog.innerHTML;
         }
 
-        // ----------------------------------------------------
-        // FEATURE 1: HOME SECURITY (Object Filtering)
-        // ----------------------------------------------------
-        async function runHomeSecurity() {
-            if (!objectModel) return;
-            const predictions = await objectModel.detect(video);
+        
+        // Import Firebase SDKs
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        ACTUAL FIREBASE CONFIG 🚨
+        const firebaseConfig = {
+            apiKey: "AIzaSyCWMCWJtzn7zetatFuW9ioynlkesOgtQ60",
+  authDomain: "trinetra-ai-83f3b.firebaseapp.com",
+  projectId: "trinetra-ai-83f3b",
+  storageBucket: "trinetra-ai-83f3b.firebasestorage.app",
+  messagingSenderId: "774580860699",
+  appId: "1:774580860699:web:dbf2a99eb02965cfb305be",
+  measurementId: "G-M6ELNTM7T0"
+        };
+
+        // Initialize Firebase and Firestore
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // --- FIREBASE AUTHENTICATION LOGIC ---
+
+        // We attach these to 'window' so your HTML button onclick="sendOTP()" still works
+        window.sendOTP = async function() {
+            const phone = document.getElementById('input-phone').value;
+            if(phone.length < 5) return alert("Enter a valid phone number.");
+
+            // Generate a random 6-digit OTP
+            const generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
             
-            let intruderDetected = false;
+            try {
+                // Write the OTP to Firebase Firestore under the collection 'auth_requests'
+                await setDoc(doc(db, "auth_requests", phone), {
+                    otp: generatedOTP,
+                    timestamp: new Date().toISOString(),
+                    status: "pending"
+                });
 
-            predictions.forEach(p => {
-                let [x, y, w, h] = p.bbox;
-                let mirroredX = canvas.width - x - w; // Mirror for webcam
+                console.log("OTP written to Firebase:", generatedOTP); // For easy debugging
+                
+                document.getElementById('step-phone').classList.add('hidden');
+                document.getElementById('step-otp').classList.remove('hidden');
+                logEvent(`OTP requested for ${phone}. Syncing with Cloud Firestore...`, "var(--cyan)");
 
-                if (p.class === 'person') {
-                    intruderDetected = true;
-                    ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 4;
-                    ctx.strokeRect(mirroredX, y, w, h);
-                    ctx.fillStyle = '#ef4444'; ctx.fillRect(mirroredX, y - 25, 200, 25);
-                    ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Courier';
-                    ctx.fillText("HUMAN INTRUDER", mirroredX + 5, y - 8);
-                } else if (['dog', 'cat', 'bird', 'cell phone', 'book', 'cup'].includes(p.class)) {
-                    // FILTERING FALSE POSITIVES
-                    ctx.strokeStyle = '#64748b'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
-                    ctx.strokeRect(mirroredX, y, w, h); ctx.setLineDash([]);
-                    ctx.fillStyle = '#64748b'; ctx.font = '14px Courier';
-                    ctx.fillText(`FILTERED: ${p.class.toUpperCase()}`, mirroredX, y - 5);
+            } catch (error) {
+                console.error("Error writing to Firebase: ", error);
+                alert("Database connection failed. Check console.");
+            }
+        }
+
+        window.verifyOTP = async function() {
+            const phone = document.getElementById('input-phone').value;
+            const enteredOTP = document.getElementById('input-otp').value;
+            
+            if(enteredOTP.length !== 6) return alert("Enter valid 6-digit OTP.");
+            
+            try {
+                // Fetch the OTP from Firebase
+                const docRef = doc(db, "auth_requests", phone);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists() && docSnap.data().otp === enteredOTP) {
+                    // Update document to show it was used
+                    await setDoc(docRef, { status: "verified" }, { merge: true });
+
+                    document.getElementById('header-status').innerText = "STATUS: AUTHENTICATED // CLOUD SYNCED";
+                    document.getElementById('header-status').style.color = "var(--green)";
+                    
+                    // Proceed to the next screen
+                    loadAIModels();
+                    switchView('mode');
+                } else {
+                    alert("Authentication Failed: Invalid OTP or Record Not Found.");
                 }
-            });
+            } catch (error) {
+                console.error("Error reading from Firebase: ", error);
+                alert("Failed to verify with database.");
+            }
+        }
+    
 
-            if (intruderDetected) {
-                statusText.innerText = "HOME BREACH";
-                statusText.style.color = "var(--red)";
-                statusText.style.textShadow = "0 0 20px var(--red)";
-                if(Math.random() > 0.95) addLog("CRITICAL: Unauthorized human detected in perimeter.", "warn");
+        // --- 2. MODE SELECTION ---
+        function selectMode(mode) {
+            currentMode = mode;
+            startCamera(); // Turn on webcam
+            
+            if(mode === 'HOME') {
+                switchView('setupHome');
+                setupGeofenceDrawer();
             } else {
-                statusText.innerText = "SECURE";
-                statusText.style.color = "var(--green)";
-                statusText.style.textShadow = "none";
+                switchView('setupPublic');
             }
         }
 
-        // ----------------------------------------------------
-        // FEATURE 2: PUBLIC SECURITY (Violence Detection)
-        // ----------------------------------------------------
-        async function runPublicSecurity() {
-            if (!poseModel) return;
-            const poses = await poseModel.estimatePoses(video);
+        // --- 3A. GEOFENCE DRAWING LOGIC ---
+        function setupGeofenceDrawer() {
+            const calibCanvas = document.getElementById('calib-canvas');
+            const calibVideo = document.getElementById('calib-video');
+            const ctxC = calibCanvas.getContext('2d');
+
+            // Sync canvas size to video once metadata loads
+            if(calibVideo.videoWidth) {
+                calibCanvas.width = calibVideo.videoWidth; calibCanvas.height = calibVideo.videoHeight;
+            } else {
+                calibVideo.onloadedmetadata = () => {
+                    calibCanvas.width = calibVideo.videoWidth; calibCanvas.height = calibVideo.videoHeight;
+                };
+            }
+
+            calibCanvas.onmousedown = (e) => {
+                isDrawing = true;
+                const rect = calibCanvas.getBoundingClientRect();
+                // Scale coordinates based on actual video size vs displayed size
+                const scaleX = calibCanvas.width / rect.width;
+                const scaleY = calibCanvas.height / rect.height;
+                startX = (e.clientX - rect.left) * scaleX;
+                startY = (e.clientY - rect.top) * scaleY;
+                geofence = { x: startX, y: startY, w: 0, h: 0 };
+            };
+
+            calibCanvas.onmousemove = (e) => {
+                if (!isDrawing) return;
+                const rect = calibCanvas.getBoundingClientRect();
+                const scaleX = calibCanvas.width / rect.width;
+                const scaleY = calibCanvas.height / rect.height;
+                const currentX = (e.clientX - rect.left) * scaleX;
+                const currentY = (e.clientY - rect.top) * scaleY;
+
+                geofence.w = currentX - startX;
+                geofence.h = currentY - startY;
+
+                ctxC.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
+                ctxC.fillStyle = "rgba(239, 68, 68, 0.2)";
+                ctxC.strokeStyle = "rgba(239, 68, 68, 0.9)";
+                ctxC.lineWidth = 2;
+                ctxC.setLineDash([5, 5]);
+                ctxC.fillRect(geofence.x, geofence.y, geofence.w, geofence.h);
+                ctxC.strokeRect(geofence.x, geofence.y, geofence.w, geofence.h);
+            };
+
+            calibCanvas.onmouseup = () => { isDrawing = false; };
+        }
+
+        // --- 4. DEPLOY DASHBOARD ---
+        function deployDashboard() {
+            if(currentMode === 'HOME' && !geofence) {
+                return alert("Please draw a restricted zone on the camera feed first!");
+            }
+            if(currentMode === 'PUBLIC') {
+                eventContext = document.getElementById('event-type').value;
+            }
+
+            // Route video to dashboard
+            const dashVideo = document.getElementById('dash-video');
+            dashVideo.srcObject = document.getElementById('calib-video').srcObject || document.getElementById('dash-video').srcObject;
             
-            let violenceDetected = false;
+            switchView('dashboard');
+            initDashboardUI();
+        }
 
-            if (poses.length > 0) {
-                const pose = poses[0];
-                const kp = pose.keypoints;
+        function initDashboardUI() {
+            const dCanvas = document.getElementById('dash-canvas');
+            const dVideo = document.getElementById('dash-video');
+            
+            dVideo.onloadedmetadata = () => {
+                dCanvas.width = dVideo.videoWidth;
+                dCanvas.height = dVideo.videoHeight;
+                runAILoop();
+            };
+            if(dVideo.videoWidth) {
+                dCanvas.width = dVideo.videoWidth; dCanvas.height = dVideo.videoHeight;
+                runAILoop();
+            }
 
-                // Draw Skeleton
-                ctx.fillStyle = '#06b6d4';
-                kp.forEach(point => {
-                    if (point.score > 0.3) {
-                        ctx.beginPath(); ctx.arc(canvas.width - point.x, point.y, 5, 0, 2 * Math.PI); ctx.fill();
+            if(currentMode === 'HOME') {
+                document.getElementById('dash-wrapper').classList.add('night-vision');
+                document.getElementById('dash-label').innerText = "RESIDENTIAL GEOFENCE // NIGHT MODE";
+                document.getElementById('dash-subtext').innerText = "Filtering out non-human motion.";
+                logEvent("System deployed in Home mode. Geofence active.", "var(--cyan)");
+            } else {
+                document.getElementById('dash-wrapper').classList.remove('night-vision');
+                document.getElementById('dash-label').innerText = `PUBLIC NODE: ${eventContext.toUpperCase()}`;
+                document.getElementById('dash-subtext').innerText = "Monitoring biomechanics for violence.";
+                document.getElementById('crowd-card').classList.remove('hidden');
+                logEvent(`System deployed in Public mode. Context: ${eventContext}`, "var(--cyan)");
+            }
+        }
+
+        // --- CAMERA & AI ENGINE ---
+        function startCamera() {
+            if(streamActive) return;
+            navigator.mediaDevices.getUserMedia({ video: { width: 800, height: 600 } })
+                .then(stream => {
+                    document.getElementById('calib-video').srcObject = stream;
+                    document.getElementById('dash-video').srcObject = stream;
+                    streamActive = true;
+                }).catch(err => alert("Camera Access Denied."));
+        }
+
+        async function loadAIModels() {
+            objectModel = await cocoSsd.load();
+            await tf.setBackend('webgl');
+            poseModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING });
+        }
+
+        // --- THE MAIN AI LOOP ---
+        async function runAILoop() {
+            const video = document.getElementById('dash-video');
+            const canvas = document.getElementById('dash-canvas');
+            const ctx = canvas.getContext('2d');
+            const statusBox = document.getElementById('dash-status');
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if(currentMode === 'HOME' && objectModel) {
+                // 1. DRAW GEOFENCE
+                if(geofence) {
+                    ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
+                    ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
+                    ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+                    ctx.fillRect(geofence.x, geofence.y, geofence.w, geofence.h);
+                    ctx.strokeRect(geofence.x, geofence.y, geofence.w, geofence.h);
+                    ctx.setLineDash([]);
+                }
+
+                // 2. RUN OBJECT DETECTION
+                const predictions = await objectModel.detect(video);
+                let breach = false;
+
+                predictions.forEach(p => {
+                    let [x, y, w, h] = p.bbox;
+                    let mX = canvas.width - x - w; // Mirrored X
+
+                    if(p.class === 'person') {
+                        // Check if center of person is inside geofence
+                        let cX = mX + (w/2); let cY = y + (h/2);
+                        // Normalize geofence width/height (in case user drew backwards)
+                        let gx = Math.min(geofence.x, geofence.x + geofence.w);
+                        let gy = Math.min(geofence.y, geofence.y + geofence.h);
+                        let gw = Math.abs(geofence.w); let gh = Math.abs(geofence.h);
+
+                        if(cX > gx && cX < gx+gw && cY > gy && cY < gy+gh) {
+                            breach = true;
+                            ctx.strokeStyle = '#ef4444'; ctx.lineWidth = 3; ctx.strokeRect(mX, y, w, h);
+                            ctx.fillStyle = '#ef4444'; ctx.fillRect(mX, y-20, 150, 20);
+                            ctx.fillStyle = '#fff'; ctx.font = '14px Rajdhani'; ctx.fillText("INTRUDER BREACH", mX+5, y-5);
+                        } else {
+                            ctx.strokeStyle = '#10b981'; ctx.lineWidth = 2; ctx.strokeRect(mX, y, w, h);
+                        }
+                    } else if (['dog', 'cat', 'cell phone', 'book'].includes(p.class)) {
+                        ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1; ctx.strokeRect(mX, y, w, h);
+                        ctx.fillStyle = '#64748b'; ctx.font = '12px Rajdhani'; ctx.fillText(`FILTERED: ${p.class}`, mX, y-5);
                     }
                 });
 
-                // Violence Logic: Are hands raised in a boxing/fighting stance?
-                let leftWrist = kp.find(k => k.name === 'left_wrist');
-                let rightWrist = kp.find(k => k.name === 'right_wrist');
-                let leftShoulder = kp.find(k => k.name === 'left_shoulder');
-                let rightShoulder = kp.find(k => k.name === 'right_shoulder');
-
-                if (leftWrist && rightWrist && leftShoulder && rightShoulder &&
-                    leftWrist.score > 0.4 && rightWrist.score > 0.4) {
-                    
-                    // If wrists are held higher than the shoulders
-                    if (leftWrist.y < leftShoulder.y && rightWrist.y < rightShoulder.y) {
-                        violenceDetected = true;
+                if(breach) {
+                    statusBox.innerText = "INTRUDER ALERT"; statusBox.style.color = "var(--red)";
+                    if(Math.random() > 0.95) {
+                        logEvent("Geofence breached by human target. Recording...", "var(--red)");
+                        // SEND TO PYTHON BACKEND
+                        if(ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({
+                                camera_id: "CAM_01_HOME",
+                                alert_type: "GEOFENCE_BREACH",
+                                threat_level: "CRITICAL"
+                            }));
+                        }
                     }
-                }
+                } else if (currentMode === 'PUBLIC' && poseModel && objectModel) {
+                
+                // 1. RUN COCO-SSD TO COUNT CROWD
+                const objPreds = await objectModel.detect(video);
+                let peopleCount = objPreds.filter(p => p.class === 'person').length;
+                document.getElementById('crowd-count').innerText = peopleCount;
 
-                // UI Update based on behavior
-                if (violenceDetected) {
-                    statusText.innerText = "VIOLENCE DETECTED";
-                    statusText.style.color = "var(--red)";
-                    statusText.style.textShadow = "0 0 20px var(--red)";
+                // 2. RUN MOVENET FOR VIOLENCE DETECTION
+                const poses = await poseModel.estimatePoses(video);
+                let violence = false;
+
+                if (poses.length > 0) {
+                    const kp = poses[0].keypoints;
                     
-                    // Draw Red warning overlay over the skeleton
-                    let minX = Math.min(...kp.map(p => canvas.width - p.x));
-                    let minY = Math.min(...kp.map(p => p.y));
-                    ctx.fillStyle = "rgba(239, 68, 68, 0.2)";
-                    ctx.fillRect(minX - 50, minY - 50, 200, 300);
-                    
-                    if(Math.random() > 0.90) addLog("ALERT: Aggressive fighting posture detected. Security dispatched.", "warn");
-                } else {
-                    statusText.innerText = "CROWD NORMAL";
-                    statusText.style.color = "var(--cyan)";
-                    statusText.style.textShadow = "none";
-                }
-            }
+                    // Draw Skeleton
+                    ctx.fillStyle = '#06b6d4';
+                    kp.forEach(point => {
+                        if (point.score > 0.2) {
+                            ctx.beginPath(); ctx.arc(canvas.width - point.x, point.y, 6, 0, 2 * Math.PI); ctx.fill();
+                        }
+                    });
+
+                    let lWrist = kp.find(k => k.name === 'left_wrist');
+                    let rWrist = kp.find(k => k.name === 'right_wrist');
+                    let nose = kp.find(k => k.name === 'nose');
+
+                    if (nose && nose.score > 0.2) {
+                        let isLeftUp = lWrist && lWrist.score > 0.2 && lWrist.y < nose.y + 20;
+                        let isRightUp = rWrist && rWrist.score > 0.2 && rWrist.y < nose.y + 20;
+
+                        if (isLeftUp || isRightUp) violence = true;
+                    }
+
+                    if(violence) {
+                        statusBox.innerText = "VIOLENCE DETECTED"; statusBox.style.color = "var(--red)";
+                        ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; ctx.fillRect(0,0, canvas.width, canvas.height);
+                        if(Math.random() > 0.90) {
+                            logEvent(`Aggressive behavior detected in ${eventContext}.`, "var(--red)");
+                            // SEND TO PYTHON BACKEND
+                            if(ws && ws.readyState === WebSocket.OPEN) {
+                                ws.send(JSON.stringify({
+                                    camera_id: "CAM_02_PUBLIC",
+                                    alert_type: "BIOMECHANICAL_VIOLENCE",
+                                    threat_level: "CRITICAL"
+                                }));
+                            }
+                        }
+                    }
+
+            requestAnimationFrame(runAILoop);
         }
     </script>
 </body>
