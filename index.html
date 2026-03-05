@@ -365,10 +365,14 @@
         async function loadAIModels() {
             objectModel = await cocoSsd.load();
             await tf.setBackend('webgl');
-            poseModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING });
+            // UPGRADED to MULTIPOSE to track interactions between multiple people
+            poseModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, { 
+                modelType: poseDetection.movenet.modelType.MULTIPOSE_LIGHTNING,
+                enableTracking: true
+            });
         }
 
-        // --- FIXED THE AI LOOP BRACKETS ---
+        // --- THE MASTER AI LOOP ---
         async function runAILoop() {
             const video = document.getElementById('dash-video');
             const canvas = document.getElementById('dash-canvas');
@@ -377,7 +381,7 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // LOGIC FOR HOME MODE
+            // LOGIC FOR HOME MODE (Intruder Detection)
             if(currentMode === 'HOME' && objectModel) {
                 if(geofence) {
                     ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
@@ -427,7 +431,7 @@
                     statusBox.innerText = "SECURE"; statusBox.style.color = "var(--green)";
                 }
 
-            // LOGIC FOR PUBLIC MODE
+            // LOGIC FOR PUBLIC MODE (Multi-Person Interactions)
             } else if (currentMode === 'PUBLIC' && poseModel && objectModel) {
                 
                 const objPreds = await objectModel.detect(video);
@@ -435,39 +439,94 @@
                 document.getElementById('crowd-count').innerText = peopleCount;
 
                 const poses = await poseModel.estimatePoses(video);
-                let violence = false;
+                let alertTriggered = false;
+                let alertMessage = "CROWD NORMAL";
+
+                // Math function to check distance between joints
+                const getDistance = (p1, p2) => Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
 
                 if (poses.length > 0) {
-                    const kp = poses[0].keypoints;
-                    
                     ctx.fillStyle = '#06b6d4';
-                    kp.forEach(point => {
-                        if (point.score > 0.2) {
-                            ctx.beginPath(); ctx.arc(canvas.width - point.x, point.y, 6, 0, 2 * Math.PI); ctx.fill();
+                    
+                    // Draw all skeletons
+                    poses.forEach(pose => {
+                        pose.keypoints.forEach(point => {
+                            if (point.score > 0.2) {
+                                ctx.beginPath(); 
+                                ctx.arc(canvas.width - point.x, point.y, 5, 0, 2 * Math.PI); 
+                                ctx.fill();
+                            }
+                        });
+                    });
+
+                    // 1. RETAIL SHOPLIFTING (Self-Concealment)
+                    poses.forEach(pose => {
+                        let lWrist = pose.keypoints.find(k => k.name === 'left_wrist');
+                        let rWrist = pose.keypoints.find(k => k.name === 'right_wrist');
+                        let lHip = pose.keypoints.find(k => k.name === 'left_hip');
+                        let rHip = pose.keypoints.find(k => k.name === 'right_hip');
+
+                        if (lHip && rHip && lHip.score > 0.3) {
+                            let leftToPocket = lWrist && lWrist.score > 0.3 ? getDistance(lWrist, lHip) : 999;
+                            let rightToPocket = rWrist && rWrist.score > 0.3 ? getDistance(rWrist, rHip) : 999;
+
+                            if (leftToPocket < 35 || rightToPocket < 35) {
+                                alertTriggered = true;
+                                alertMessage = "SHOPLIFTING: ITEM CONCEALMENT";
+                            }
                         }
                     });
 
-                    let lWrist = kp.find(k => k.name === 'left_wrist');
-                    let rWrist = kp.find(k => k.name === 'right_wrist');
-                    let nose = kp.find(k => k.name === 'nose');
+                    // 2. MULTI-PERSON (Assault & Pickpocketing)
+                    if (poses.length >= 2) {
+                        let personA = poses[0].keypoints;
+                        let personB = poses[1].keypoints;
 
-                    if (nose && nose.score > 0.2) {
-                        let isLeftUp = lWrist && lWrist.score > 0.2 && lWrist.y < nose.y + 20;
-                        let isRightUp = rWrist && rWrist.score > 0.2 && rWrist.y < nose.y + 20;
-                        if (isLeftUp || isRightUp) violence = true;
+                        let a_rWrist = personA.find(k => k.name === 'right_wrist');
+                        let a_lWrist = personA.find(k => k.name === 'left_wrist');
+                        
+                        let b_nose = personB.find(k => k.name === 'nose');
+                        let b_lHip = personB.find(k => k.name === 'left_hip');
+
+                        // Check if A's hand is interacting with B's body
+                        if (a_rWrist && a_rWrist.score > 0.2) {
+                            
+                            // SCENARIO A: CHOKING / ASSAULT
+                            if (b_nose && b_nose.score > 0.2) {
+                                let distToFace = getDistance({x: canvas.width - a_rWrist.x, y: a_rWrist.y}, {x: canvas.width - b_nose.x, y: b_nose.y});
+                                if (distToFace < 50) {
+                                    alertTriggered = true;
+                                    alertMessage = "CRITICAL: ASSAULT / NECK CONTACT";
+                                }
+                            }
+
+                            // SCENARIO B: PICKPOCKETING
+                            if (b_lHip && b_lHip.score > 0.2 && !alertTriggered) {
+                                let distToHip = getDistance({x: canvas.width - a_rWrist.x, y: a_rWrist.y}, {x: canvas.width - b_lHip.x, y: b_lHip.y});
+                                if (distToHip < 45) {
+                                    alertTriggered = true;
+                                    alertMessage = "WARNING: PICKPOCKET / TAMPERING";
+                                }
+                            }
+                        }
                     }
 
-                    if(violence) {
-                        statusBox.innerText = "VIOLENCE DETECTED"; statusBox.style.color = "var(--red)";
-                        ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; ctx.fillRect(0,0, canvas.width, canvas.height);
+                    // --- UPDATE UI ---
+                    if(alertTriggered) {
+                        statusBox.innerText = alertMessage; 
+                        statusBox.style.color = "var(--red)";
+                        ctx.fillStyle = "rgba(239, 68, 68, 0.25)"; 
+                        ctx.fillRect(0,0, canvas.width, canvas.height);
+                        
                         if(Math.random() > 0.90) {
-                            window.logEvent(`Aggressive behavior detected in ${eventContext}.`, "var(--red)");
+                            window.logEvent(`[${alertMessage}] detected on camera.`, "var(--red)");
                             if(ws && ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify({ camera_id: "CAM_02_PUBLIC", alert_type: "BIOMECHANICAL_VIOLENCE", threat_level: "CRITICAL" }));
+                                ws.send(JSON.stringify({ camera_id: "CAM_02_PUBLIC", alert_type: alertMessage, threat_level: "CRITICAL" }));
                             }
                         }
                     } else {
-                        statusBox.innerText = "CROWD NORMAL"; statusBox.style.color = "var(--cyan)";
+                        statusBox.innerText = "CROWD NORMAL"; 
+                        statusBox.style.color = "var(--cyan)";
                     }
                 }
             }
