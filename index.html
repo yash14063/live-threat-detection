@@ -216,7 +216,7 @@
             dashLog.innerHTML = `<div style="color: ${color}; margin-bottom: 5px;">[${new Date().toLocaleTimeString()}] ${msg}</div>` + dashLog.innerHTML;
         }
 
-        
+        <script type="module">
         // Import Firebase SDKs
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -294,7 +294,7 @@
                 alert("Failed to verify with database.");
             }
         }
-    
+  
 
         // --- 2. MODE SELECTION ---
         function selectMode(mode) {
