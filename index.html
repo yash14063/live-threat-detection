@@ -35,7 +35,7 @@
         /* VIEW CONTAINERS */
         .view-section { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; width: 100%; height: 100%; position: absolute; top: 0; left: 0; transition: opacity 0.5s ease; }
 
-        /* HEADER (Shared across views) */
+        /* HEADER */
         header { width: 100%; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(6, 182, 212, 0.3); position: fixed; top: 0; left: 0; z-index: 100; box-sizing: border-box; background: rgba(2, 6, 23, 0.9); }
         .logo { font-size: 1.8rem; font-weight: 700; color: var(--cyan); text-transform: uppercase; letter-spacing: 2px; }
 
@@ -66,9 +66,7 @@
         .data-card { padding: 15px; }
         .data-value { font-size: 2.5rem; font-weight: 700; color: var(--green); text-shadow: 0 0 10px var(--green); }
         
-        /* Night vision class */
         .night-vision #dash-video { filter: grayscale(100%) contrast(120%) brightness(80%) sepia(40%) hue-rotate(80deg); }
-
     </style>
 </head>
 <body>
@@ -82,6 +80,8 @@
         <div class="glass-panel login-box">
             <h2>OPERATOR AUTHENTICATION</h2>
             <p style="color: var(--muted); margin-bottom: 20px;">Enter secure mobile identifier to receive Access OTP.</p>
+            
+            <div id="recaptcha-container"></div> 
             
             <div id="step-phone">
                 <input type="tel" id="input-phone" class="input-field" placeholder="+1 (555) 000-0000">
@@ -172,7 +172,23 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // 🚨 REPLACE THIS WITH YOUR ACTUAL FIREBASE CONFIG 🚨
+        const firebaseConfig = {
+            apiKey: "AIzaSyCGHekfRAni1BLu3TP4iWX45LVNHOmMujA",
+            authDomain: "threatsense-os.firebaseapp.com",
+            projectId: "threatsense-os",
+            storageBucket: "threatsense-os.firebasestorage.app",
+            messagingSenderId: "698718175831",
+            appId: "1:698718175831:web:828250e6609da025981912"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
         // --- GLOBAL STATE ---
         let currentMode = '';
         let eventContext = '';
@@ -184,18 +200,13 @@
         // --- EDGE-TO-CLOUD CONNECTION ---
         let ws;
         function connectBackend() {
-            // Connect to the local Python server
             ws = new WebSocket('ws://localhost:8000/ws/stream');
-            
-            ws.onopen = () => logEvent("Secure WebSocket tunnel established to Python Cloud.", "var(--green)");
-            ws.onclose = () => logEvent("Warning: Cloud connection lost. Running locally.", "var(--red)");
+            ws.onopen = () => window.logEvent("Secure WebSocket tunnel established to Python Cloud.", "var(--green)");
+            ws.onclose = () => window.logEvent("Warning: Cloud connection lost. Running locally.", "var(--red)");
         }
-        
-        // Call this when the app loads
         connectBackend();
 
-        
-        // --- DOM ELEMENTS ---
+        // --- DOM ELEMENTS & UI ---
         const views = {
             login: document.getElementById('view-login'),
             mode: document.getElementById('view-mode'),
@@ -203,58 +214,32 @@
             setupPublic: document.getElementById('view-setup-public'),
             dashboard: document.getElementById('view-dashboard')
         };
-        const headerStatus = document.getElementById('header-status');
         const dashLog = document.getElementById('dash-log');
 
-        // --- NAVIGATION LOGIC ---
-        function switchView(viewName) {
+        window.switchView = function(viewName) {
             Object.values(views).forEach(v => v.classList.add('hidden'));
             views[viewName].classList.remove('hidden');
-        }
-
-        function logEvent(msg, color="var(--muted)") {
-            dashLog.innerHTML = `<div style="color: ${color}; margin-bottom: 5px;">[${new Date().toLocaleTimeString()}] ${msg}</div>` + dashLog.innerHTML;
-        }
-
-       <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-
-        // 🚨 REPLACE THIS WITH YOUR ACTUAL FIREBASE CONFIG 🚨
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY",
-            authDomain: "your-project.firebaseapp.com",
-            projectId: "your-project-id",
-            storageBucket: "your-project.appspot.com",
-            messagingSenderId: "123456789",
-            appId: "1:123456789:web:abcdef"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const auth = getAuth(app);
+        window.logEvent = function(msg, color="var(--muted)") {
+            dashLog.innerHTML = `<div style="color: ${color}; margin-bottom: 5px;">[${new Date().toLocaleTimeString()}] ${msg}</div>` + dashLog.innerHTML;
+        };
 
-        // Setup Invisible reCAPTCHA
+        // --- FIREBASE AUTHENTICATION ---
         window.setupRecaptcha = function() {
             if (!window.recaptchaVerifier) {
                 window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
                     'size': 'invisible',
-                    'callback': (response) => {
-                        console.log("reCAPTCHA verified.");
-                    }
+                    'callback': (response) => { console.log("reCAPTCHA verified."); }
                 });
             }
         };
 
-        // Send OTP Function
         window.sendOTP = function() {
             const phoneInput = document.getElementById('input-phone').value.trim();
-            
-            if(!phoneInput.startsWith("+")) {
-                return alert("Please include the country code, e.g., +91 9876543210");
-            }
+            if(!phoneInput.startsWith("+")) return alert("Please include the country code, e.g., +91 9876543210");
 
             document.getElementById('header-status').innerText = "STATUS: CONTACTING TELECOM...";
-
             window.setupRecaptcha();
             const appVerifier = window.recaptchaVerifier;
 
@@ -264,74 +249,62 @@
                     document.getElementById('step-phone').classList.add('hidden');
                     document.getElementById('step-otp').classList.remove('hidden');
                     document.getElementById('header-status').innerText = "STATUS: AWAITING OTP";
-                    console.log("Real SMS transmitted successfully.");
                 }).catch((error) => {
-                    console.error("SMS not sent", error);
-                    alert("Error sending SMS. Check Firebase Console configuration.");
+                    console.error(error);
+                    alert("Error sending SMS. Ensure Phone Auth is enabled in Firebase Console.");
                     if(window.recaptchaVerifier) window.recaptchaVerifier.render().then(w => window.recaptchaVerifier.reset(w));
                 });
         };
 
-        // Verify OTP Function
         window.verifyOTP = function() {
             const code = document.getElementById('input-otp').value.trim();
-            
-            if(code.length !== 6) return alert("Enter the 6-digit code from your SMS.");
+            if(code.length !== 6) return alert("Enter the 6-digit code.");
 
             document.getElementById('header-status').innerText = "STATUS: VERIFYING...";
 
             window.confirmationResult.confirm(code).then((result) => {
-                const user = result.user;
-                console.log("Authenticated User ID:", user.uid);
-                
                 document.getElementById('header-status').innerText = "STATUS: AUTHENTICATED // SECURE NODE";
                 document.getElementById('header-status').style.color = "var(--green)";
                 
-                // Switch to the next screen!
-                if(typeof window.loadAIModels === "function") window.loadAIModels();
-                if(typeof window.switchView === "function") window.switchView('mode');
-                
+                loadAIModels();
+                window.switchView('mode');
             }).catch((error) => {
-                console.error("Verification failed", error);
                 alert("Authentication Failed: The code is incorrect or expired.");
             });
         };
-    
-    
-  
 
-        // --- 2. MODE SELECTION ---
-        function selectMode(mode) {
+        // --- CAMERA & AI ENGINE ---
+        window.selectMode = function(mode) {
             currentMode = mode;
-            startCamera(); // Turn on webcam
+            if(!streamActive) {
+                navigator.mediaDevices.getUserMedia({ video: { width: 800, height: 600 } })
+                    .then(stream => {
+                        document.getElementById('calib-video').srcObject = stream;
+                        document.getElementById('dash-video').srcObject = stream;
+                        streamActive = true;
+                    }).catch(err => alert("Camera Access Denied."));
+            }
             
             if(mode === 'HOME') {
-                switchView('setupHome');
+                window.switchView('setupHome');
                 setupGeofenceDrawer();
             } else {
-                switchView('setupPublic');
+                window.switchView('setupPublic');
             }
-        }
+        };
 
-        // --- 3A. GEOFENCE DRAWING LOGIC ---
         function setupGeofenceDrawer() {
             const calibCanvas = document.getElementById('calib-canvas');
             const calibVideo = document.getElementById('calib-video');
             const ctxC = calibCanvas.getContext('2d');
 
-            // Sync canvas size to video once metadata loads
-            if(calibVideo.videoWidth) {
+            calibVideo.onloadedmetadata = () => {
                 calibCanvas.width = calibVideo.videoWidth; calibCanvas.height = calibVideo.videoHeight;
-            } else {
-                calibVideo.onloadedmetadata = () => {
-                    calibCanvas.width = calibVideo.videoWidth; calibCanvas.height = calibVideo.videoHeight;
-                };
-            }
+            };
 
             calibCanvas.onmousedown = (e) => {
                 isDrawing = true;
                 const rect = calibCanvas.getBoundingClientRect();
-                // Scale coordinates based on actual video size vs displayed size
                 const scaleX = calibCanvas.width / rect.width;
                 const scaleY = calibCanvas.height / rect.height;
                 startX = (e.clientX - rect.left) * scaleX;
@@ -342,19 +315,13 @@
             calibCanvas.onmousemove = (e) => {
                 if (!isDrawing) return;
                 const rect = calibCanvas.getBoundingClientRect();
-                const scaleX = calibCanvas.width / rect.width;
-                const scaleY = calibCanvas.height / rect.height;
-                const currentX = (e.clientX - rect.left) * scaleX;
-                const currentY = (e.clientY - rect.top) * scaleY;
-
-                geofence.w = currentX - startX;
-                geofence.h = currentY - startY;
+                geofence.w = ((e.clientX - rect.left) * (calibCanvas.width / rect.width)) - startX;
+                geofence.h = ((e.clientY - rect.top) * (calibCanvas.height / rect.height)) - startY;
 
                 ctxC.clearRect(0, 0, calibCanvas.width, calibCanvas.height);
                 ctxC.fillStyle = "rgba(239, 68, 68, 0.2)";
                 ctxC.strokeStyle = "rgba(239, 68, 68, 0.9)";
-                ctxC.lineWidth = 2;
-                ctxC.setLineDash([5, 5]);
+                ctxC.lineWidth = 2; ctxC.setLineDash([5, 5]);
                 ctxC.fillRect(geofence.x, geofence.y, geofence.w, geofence.h);
                 ctxC.strokeRect(geofence.x, geofence.y, geofence.w, geofence.h);
             };
@@ -362,61 +329,38 @@
             calibCanvas.onmouseup = () => { isDrawing = false; };
         }
 
-        // --- 4. DEPLOY DASHBOARD ---
-        function deployDashboard() {
-            if(currentMode === 'HOME' && !geofence) {
-                return alert("Please draw a restricted zone on the camera feed first!");
-            }
-            if(currentMode === 'PUBLIC') {
-                eventContext = document.getElementById('event-type').value;
-            }
+        window.deployDashboard = function() {
+            if(currentMode === 'HOME' && !geofence) return alert("Please draw a restricted zone!");
+            if(currentMode === 'PUBLIC') eventContext = document.getElementById('event-type').value;
 
-            // Route video to dashboard
-            const dashVideo = document.getElementById('dash-video');
-            dashVideo.srcObject = document.getElementById('calib-video').srcObject || document.getElementById('dash-video').srcObject;
+            window.switchView('dashboard');
             
-            switchView('dashboard');
-            initDashboardUI();
-        }
-
-        function initDashboardUI() {
             const dCanvas = document.getElementById('dash-canvas');
             const dVideo = document.getElementById('dash-video');
             
-            dVideo.onloadedmetadata = () => {
-                dCanvas.width = dVideo.videoWidth;
-                dCanvas.height = dVideo.videoHeight;
-                runAILoop();
-            };
             if(dVideo.videoWidth) {
                 dCanvas.width = dVideo.videoWidth; dCanvas.height = dVideo.videoHeight;
                 runAILoop();
+            } else {
+                dVideo.onloadedmetadata = () => {
+                    dCanvas.width = dVideo.videoWidth; dCanvas.height = dVideo.videoHeight;
+                    runAILoop();
+                };
             }
 
             if(currentMode === 'HOME') {
                 document.getElementById('dash-wrapper').classList.add('night-vision');
                 document.getElementById('dash-label').innerText = "RESIDENTIAL GEOFENCE // NIGHT MODE";
                 document.getElementById('dash-subtext').innerText = "Filtering out non-human motion.";
-                logEvent("System deployed in Home mode. Geofence active.", "var(--cyan)");
+                window.logEvent("System deployed in Home mode. Geofence active.", "var(--cyan)");
             } else {
                 document.getElementById('dash-wrapper').classList.remove('night-vision');
                 document.getElementById('dash-label').innerText = `PUBLIC NODE: ${eventContext.toUpperCase()}`;
                 document.getElementById('dash-subtext').innerText = "Monitoring biomechanics for violence.";
                 document.getElementById('crowd-card').classList.remove('hidden');
-                logEvent(`System deployed in Public mode. Context: ${eventContext}`, "var(--cyan)");
+                window.logEvent(`System deployed in Public mode. Context: ${eventContext}`, "var(--cyan)");
             }
-        }
-
-        // --- CAMERA & AI ENGINE ---
-        function startCamera() {
-            if(streamActive) return;
-            navigator.mediaDevices.getUserMedia({ video: { width: 800, height: 600 } })
-                .then(stream => {
-                    document.getElementById('calib-video').srcObject = stream;
-                    document.getElementById('dash-video').srcObject = stream;
-                    streamActive = true;
-                }).catch(err => alert("Camera Access Denied."));
-        }
+        };
 
         async function loadAIModels() {
             objectModel = await cocoSsd.load();
@@ -424,7 +368,7 @@
             poseModel = await poseDetection.createDetector(poseDetection.SupportedModels.MoveNet, { modelType: poseDetection.movenet.modelType.SINGLEPOSE_LIGHTNING });
         }
 
-        // --- THE MAIN AI LOOP ---
+        // --- FIXED THE AI LOOP BRACKETS ---
         async function runAILoop() {
             const video = document.getElementById('dash-video');
             const canvas = document.getElementById('dash-canvas');
@@ -433,8 +377,8 @@
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // LOGIC FOR HOME MODE
             if(currentMode === 'HOME' && objectModel) {
-                // 1. DRAW GEOFENCE
                 if(geofence) {
                     ctx.fillStyle = "rgba(239, 68, 68, 0.1)";
                     ctx.strokeStyle = "rgba(239, 68, 68, 0.5)";
@@ -444,18 +388,15 @@
                     ctx.setLineDash([]);
                 }
 
-                // 2. RUN OBJECT DETECTION
                 const predictions = await objectModel.detect(video);
                 let breach = false;
 
                 predictions.forEach(p => {
                     let [x, y, w, h] = p.bbox;
-                    let mX = canvas.width - x - w; // Mirrored X
+                    let mX = canvas.width - x - w; 
 
                     if(p.class === 'person') {
-                        // Check if center of person is inside geofence
                         let cX = mX + (w/2); let cY = y + (h/2);
-                        // Normalize geofence width/height (in case user drew backwards)
                         let gx = Math.min(geofence.x, geofence.x + geofence.w);
                         let gy = Math.min(geofence.y, geofence.y + geofence.h);
                         let gw = Math.abs(geofence.w); let gh = Math.abs(geofence.h);
@@ -477,31 +418,28 @@
                 if(breach) {
                     statusBox.innerText = "INTRUDER ALERT"; statusBox.style.color = "var(--red)";
                     if(Math.random() > 0.95) {
-                        logEvent("Geofence breached by human target. Recording...", "var(--red)");
-                        // SEND TO PYTHON BACKEND
+                        window.logEvent("Geofence breached by human target. Recording...", "var(--red)");
                         if(ws && ws.readyState === WebSocket.OPEN) {
-                            ws.send(JSON.stringify({
-                                camera_id: "CAM_01_HOME",
-                                alert_type: "GEOFENCE_BREACH",
-                                threat_level: "CRITICAL"
-                            }));
+                            ws.send(JSON.stringify({ camera_id: "CAM_01_HOME", alert_type: "GEOFENCE_BREACH", threat_level: "CRITICAL" }));
                         }
                     }
-                } else if (currentMode === 'PUBLIC' && poseModel && objectModel) {
+                } else {
+                    statusBox.innerText = "SECURE"; statusBox.style.color = "var(--green)";
+                }
+
+            // LOGIC FOR PUBLIC MODE
+            } else if (currentMode === 'PUBLIC' && poseModel && objectModel) {
                 
-                // 1. RUN COCO-SSD TO COUNT CROWD
                 const objPreds = await objectModel.detect(video);
                 let peopleCount = objPreds.filter(p => p.class === 'person').length;
                 document.getElementById('crowd-count').innerText = peopleCount;
 
-                // 2. RUN MOVENET FOR VIOLENCE DETECTION
                 const poses = await poseModel.estimatePoses(video);
                 let violence = false;
 
                 if (poses.length > 0) {
                     const kp = poses[0].keypoints;
                     
-                    // Draw Skeleton
                     ctx.fillStyle = '#06b6d4';
                     kp.forEach(point => {
                         if (point.score > 0.2) {
@@ -516,7 +454,6 @@
                     if (nose && nose.score > 0.2) {
                         let isLeftUp = lWrist && lWrist.score > 0.2 && lWrist.y < nose.y + 20;
                         let isRightUp = rWrist && rWrist.score > 0.2 && rWrist.y < nose.y + 20;
-
                         if (isLeftUp || isRightUp) violence = true;
                     }
 
@@ -524,17 +461,16 @@
                         statusBox.innerText = "VIOLENCE DETECTED"; statusBox.style.color = "var(--red)";
                         ctx.fillStyle = "rgba(239, 68, 68, 0.2)"; ctx.fillRect(0,0, canvas.width, canvas.height);
                         if(Math.random() > 0.90) {
-                            logEvent(`Aggressive behavior detected in ${eventContext}.`, "var(--red)");
-                            // SEND TO PYTHON BACKEND
+                            window.logEvent(`Aggressive behavior detected in ${eventContext}.`, "var(--red)");
                             if(ws && ws.readyState === WebSocket.OPEN) {
-                                ws.send(JSON.stringify({
-                                    camera_id: "CAM_02_PUBLIC",
-                                    alert_type: "BIOMECHANICAL_VIOLENCE",
-                                    threat_level: "CRITICAL"
-                                }));
+                                ws.send(JSON.stringify({ camera_id: "CAM_02_PUBLIC", alert_type: "BIOMECHANICAL_VIOLENCE", threat_level: "CRITICAL" }));
                             }
                         }
+                    } else {
+                        statusBox.innerText = "CROWD NORMAL"; statusBox.style.color = "var(--cyan)";
                     }
+                }
+            }
 
             requestAnimationFrame(runAILoop);
         }
