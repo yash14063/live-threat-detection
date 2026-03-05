@@ -216,84 +216,89 @@
             dashLog.innerHTML = `<div style="color: ${color}; margin-bottom: 5px;">[${new Date().toLocaleTimeString()}] ${msg}</div>` + dashLog.innerHTML;
         }
 
-        <script type="module">
-        // Import Firebase SDKs
+       <script type="module">
+        // 1. The 'import' statements work now because we used type="module"
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
-        ACTUAL FIREBASE CONFIG 🚨
+        // 🚨 REPLACE THIS WITH YOUR ACTUAL FIREBASE CONFIG 🚨
         const firebaseConfig = {
             apiKey: "AIzaSyCWMCWJtzn7zetatFuW9ioynlkesOgtQ60",
-  authDomain: "trinetra-ai-83f3b.firebaseapp.com",
-  projectId: "trinetra-ai-83f3b",
-  storageBucket: "trinetra-ai-83f3b.firebasestorage.app",
-  messagingSenderId: "774580860699",
-  appId: "1:774580860699:web:dbf2a99eb02965cfb305be"
+            authDomain: "trinetra-ai-83f3b.firebaseapp.com",
+            projectId: "trinetra-ai-83f3b",
+            storageBucket: "trinetra-ai-83f3b.firebasestorage.app",
+            messagingSenderId: "774580860699",
+            appId: "1:774580860699:web:dbf2a99eb02965cfb305be"
         };
 
-        // Initialize Firebase and Firestore
         const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        const auth = getAuth(app);
 
-        // --- FIREBASE AUTHENTICATION LOGIC ---
-
-        // We attach these to 'window' so your HTML button onclick="sendOTP()" still works
-        window.sendOTP = async function() {
-            const phone = document.getElementById('input-phone').value;
-            if(phone.length < 5) return alert("Enter a valid phone number.");
-
-            // Generate a random 6-digit OTP
-            const generatedOTP = Math.floor(100000 + Math.random() * 900000).toString();
-            
-            try {
-                // Write the OTP to Firebase Firestore under the collection 'auth_requests'
-                await setDoc(doc(db, "auth_requests", phone), {
-                    otp: generatedOTP,
-                    timestamp: new Date().toISOString(),
-                    status: "pending"
+        // 2. We use 'window.setupRecaptcha' so the HTML can see it through the module wall!
+        window.setupRecaptcha = function() {
+            if (!window.recaptchaVerifier) {
+                window.recaptchaVerifier = new RecaptchaVerifier(auth, 'recaptcha-container', {
+                    'size': 'invisible',
+                    'callback': (response) => {
+                        console.log("reCAPTCHA verified.");
+                    }
                 });
+            }
+        };
 
-                console.log("OTP written to Firebase:", generatedOTP); // For easy debugging
+        // We use 'window.sendOTP' so your <button onclick="sendOTP()"> finds it!
+        window.sendOTP = function() {
+            const phoneInput = document.getElementById('input-phone').value.trim();
+            
+            if(!phoneInput.startsWith("+")) {
+                return alert("Please include the country code, e.g., +91 9876543210");
+            }
+
+            document.getElementById('header-status').innerText = "STATUS: CONTACTING TELECOM...";
+
+            window.setupRecaptcha();
+            const appVerifier = window.recaptchaVerifier;
+
+            signInWithPhoneNumber(auth, phoneInput, appVerifier)
+                .then((confirmationResult) => {
+                    window.confirmationResult = confirmationResult;
+                    document.getElementById('step-phone').classList.add('hidden');
+                    document.getElementById('step-otp').classList.remove('hidden');
+                    document.getElementById('header-status').innerText = "STATUS: AWAITING OTP";
+                    console.log("Real SMS transmitted successfully.");
+                }).catch((error) => {
+                    console.error("SMS not sent", error);
+                    alert("Error sending SMS. Ensure Phone Auth is enabled in Firebase Console and domains are authorized.");
+                    if(window.recaptchaVerifier) window.recaptchaVerifier.render().then(w => window.recaptchaVerifier.reset(w));
+                });
+        };
+
+        // We use 'window.verifyOTP' so your <button onclick="verifyOTP()"> finds it!
+        window.verifyOTP = function() {
+            const code = document.getElementById('input-otp').value.trim();
+            
+            if(code.length !== 6) return alert("Enter the 6-digit code from your SMS.");
+
+            document.getElementById('header-status').innerText = "STATUS: VERIFYING...";
+
+            window.confirmationResult.confirm(code).then((result) => {
+                const user = result.user;
+                console.log("Authenticated User ID:", user.uid);
                 
-                document.getElementById('step-phone').classList.add('hidden');
-                document.getElementById('step-otp').classList.remove('hidden');
-                logEvent(`OTP requested for ${phone}. Syncing with Cloud Firestore...`, "var(--cyan)");
-
-            } catch (error) {
-                console.error("Error writing to Firebase: ", error);
-                alert("Database connection failed. Check console.");
-            }
-        }
-
-        window.verifyOTP = async function() {
-            const phone = document.getElementById('input-phone').value;
-            const enteredOTP = document.getElementById('input-otp').value;
-            
-            if(enteredOTP.length !== 6) return alert("Enter valid 6-digit OTP.");
-            
-            try {
-                // Fetch the OTP from Firebase
-                const docRef = doc(db, "auth_requests", phone);
-                const docSnap = await getDoc(docRef);
-
-                if (docSnap.exists() && docSnap.data().otp === enteredOTP) {
-                    // Update document to show it was used
-                    await setDoc(docRef, { status: "verified" }, { merge: true });
-
-                    document.getElementById('header-status').innerText = "STATUS: AUTHENTICATED // CLOUD SYNCED";
-                    document.getElementById('header-status').style.color = "var(--green)";
-                    
-                    // Proceed to the next screen
-                    loadAIModels();
-                    switchView('mode');
-                } else {
-                    alert("Authentication Failed: Invalid OTP or Record Not Found.");
-                }
-            } catch (error) {
-                console.error("Error reading from Firebase: ", error);
-                alert("Failed to verify with database.");
-            }
-        }
+                document.getElementById('header-status').innerText = "STATUS: AUTHENTICATED // SECURE NODE";
+                document.getElementById('header-status').style.color = "var(--green)";
+                
+                // This triggers the switch to the next screen!
+                // Make sure your loadAIModels() and switchView() functions are available globally too!
+                if(typeof window.loadAIModels === "function") window.loadAIModels();
+                if(typeof window.switchView === "function") window.switchView('mode');
+                
+            }).catch((error) => {
+                console.error("Verification failed", error);
+                alert("Authentication Failed: The code is incorrect or expired.");
+            });
+        };
+    </script>
   
 
         // --- 2. MODE SELECTION ---
