@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ThreatSense - Real-Time Threat Detection System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            background: linear-gradient(135deg, #0a1428 0%, #1a2a4a 100%);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ============================================================ */
+        /* HEADER & NAVIGATION */
+        /* ============================================================ */
+
+        header {
+            background: rgba(0, 0, 0, 0.8);
+            border-bottom: 2px solid #00d4ff;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0, 212, 255, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+            text-decoration: none;
+        }
+
+        .logo::before {
+            content: '⚠️';
+            font-size: 1.8rem;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        nav {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        nav a, nav button {
+            color: #e0e0e0;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: transparent;
+            font-size: 0.95rem;
+        }
+
+        nav a:hover, nav button:hover {
+            color: #00d4ff;
+            border-color: #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+        }
+
+        .status-badge {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff00;
+            animation: glow 1.5s infinite;
+            margin-right: 0.5rem;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 5px #00ff00; }
+            50% { box-shadow: 0 0 15px #00ff00; }
+        }
+
+        /* ============================================================ */
+        /* MAIN LAYOUT */
+        /* ============================================================ */
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 2rem;
+        }
+
+        @media (max-width: 1400px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                display: none;
+            }
+        }
+
+        /* ============================================================ */
+        /* VIDEO GRID */
+        /* ============================================================ */
+
+        .video-section {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .video-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+            gap: 2rem;
+        }
+
+        .video-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 2px solid #1a1a2e;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .video-card:hover {
+            border-color: #00d4ff;
+            box-shadow: 0 8px 32px rgba(0, 212, 255, 0.2);
+            transform: translateY(-4px);
+        }
+
+        .video-card.alert {
+            border-color: #ff3333;
+            background: rgba(255, 51, 51, 0.1);
+            animation: alert-pulse 0.8s;
+        }
+
+        @keyframes alert-pulse {
+            0%, 100% { box-shadow: 0 8px 32px rgba(255, 51, 51, 0.3); }
+            50% { box-shadow: 0 8px 32px rgba(255, 51, 51, 0.6); }
+        }
+
+        .video-header {
+            background: rgba(0, 0, 0, 0.8);
+            padding: 1rem;
+            border-bottom: 1px solid #1a1a2e;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .camera-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+            color: #00d4ff;
+        }
+
+        .camera-status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+            color: #a0a0a0;
+        }
+
+        .frame-count {
+            background: rgba(0, 212, 255, 0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: #00d4ff;
+        }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 75%;
+            background: #000;
+            overflow: hidden;
+        }
+
+        .video-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .video-controls {
+            padding: 1rem;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            gap: 0.5rem;
+            border-top: 1px solid #1a1a2e;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 1px solid #00d4ff;
+            background: rgba(0, 212, 255, 0.1);
+            color: #00d4ff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            font-weight: 500;
+        }
+
+        .btn:hover {
+            background: rgba(0, 212, 255, 0.3);
+            box-shadow: 0 0 15px rgba(0, 212, 255, 0.5);
+        }
+
+        .btn.danger {
+            border-color: #ff3333;
+            color: #ff3333;
+            background: rgba(255, 51, 51, 0.1);
+        }
+
+        .btn.danger:hover {
+            background: rgba(255, 51, 51, 0.3);
+            box-shadow: 0 0 15px rgba(255, 51, 51, 0.5);
+        }
+
+        /* ============================================================ */
+        /* STATS & ALERTS */
+        /* ============================================================ */
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #1a1a2e;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .stat-card.critical {
+            border-color: #ff3333;
+            background: rgba(255, 51, 51, 0.1);
+        }
+
+        .stat-value {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin: 0.5rem 0;
+        }
+
+        .stat-card.critical .stat-value {
+            color: #ff3333;
+        }
+
+        .stat-label {
+            color: #a0a0a0;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .alerts-panel {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #1a1a2e;
+            border-radius: 8px;
+            padding: 1.5rem;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+
+        .alerts-title {
+            font-size: 1.2rem;
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .alert-item {
+            background: rgba(0, 0, 0, 0.4);
+            border-left: 4px solid #ff3333;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .alert-item.high {
+            border-left-color: #ff6666;
+        }
+
+        .alert-item.medium {
+            border-left-color: #ffaa00;
+        }
+
+        .alert-item.low {
+            border-left-color: #ffff00;
+        }
+
+        .alert-threat-type {
+            color: #ff3333;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-message {
+            color: #e0e0e0;
+            margin-bottom: 0.25rem;
+        }
+
+        .alert-time {
+            color: #808080;
+            font-size: 0.85rem;
+        }
+
+        .alert-score {
+            display: inline-block;
+            background: rgba(255, 51, 51, 0.2);
+            color: #ff3333;
+            padding: 0.25rem 0.75rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            margin-top: 0.5rem;
+        }
+
+        /* ============================================================ */
+        /* SIDEBAR */
+        /* ============================================================ */
+
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+        }
+
+        .sidebar-card {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #1a1a2e;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .sidebar-title {
+            font-size: 1.1rem;
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #1a1a2e;
+            padding-bottom: 0.75rem;
+        }
+
+        .detector-status {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #1a1a2e;
+            font-size: 0.9rem;
+        }
+
+        .detector-status:last-child {
+            border-bottom: none;
+        }
+
+        .detector-name {
+            color: #a0a0a0;
+        }
+
+        .detector-active {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #00ff00;
+            box-shadow: 0 0 8px #00ff00;
+        }
+
+        .detector-inactive {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+        }
+
+        .detector-count {
+            background: rgba(0, 212, 255, 0.2);
+            color: #00d4ff;
+            padding: 0.25rem 0.5rem;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        /* ============================================================ */
+        /* SYSTEM INFO */
+        /* ============================================================ */
+
+        .system-info {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.1) 0%, rgba(0, 0, 0, 0.6) 100%);
+            border: 1px solid #00d4ff;
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+            font-size: 0.9rem;
+        }
+
+        .info-row:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            color: #a0a0a0;
+        }
+
+        .info-value {
+            color: #00d4ff;
+            font-weight: 600;
+        }
+
+        /* ============================================================ */
+        /* MODAL */
+        /* ============================================================ */
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.8);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal.show {
+            display: block;
+        }
+
+        .modal-content {
+            background: #1a1a2e;
+            margin: 5% auto;
+            padding: 2rem;
+            border: 2px solid #00d4ff;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            box-shadow: 0 0 30px rgba(0, 212, 255, 0.3);
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .modal-header {
+            font-size: 1.5rem;
+            color: #00d4ff;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid #00d4ff;
+            padding-bottom: 0.75rem;
+        }
+
+        .modal-body {
+            color: #e0e0e0;
+            margin-bottom: 1.5rem;
+            line-height: 1.6;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        .form-group input,
+        .form-group select {
+            width: 100%;
+            padding: 0.75rem;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #1a1a2e;
+            color: #e0e0e0;
+            border-radius: 4px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #00d4ff;
+            box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+        }
+
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        /* ============================================================ */
+        /* SCROLLBAR */
+        /* ============================================================ */
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.5);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 212, 255, 0.8);
+        }
+
+        /* ============================================================ */
+        /* RESPONSIVE */
+        /* ============================================================ */
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+
+            .video-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            nav {
+                width: 100%;
+                justify-content: space-around;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <header>
+        <a href="/" class="logo">ThreatSense</a>
+        <nav>
+            <a href="#cameras">Cameras</a>
+            <a href="#alerts">Alerts</a>
+            <a href="#stats">Statistics</a>
+            <span class="status-badge"></span>
+            <span id="systemStatus" style="color: #00ff00;">System: Operational</span>
+        </nav>
+    </header>
+
+    <!-- MAIN CONTAINER -->
+    <div class="container">
+        <!-- MAIN CONTENT -->
+        <div class="video-section">
+            <!-- SYSTEM INFO -->
+            <div class="system-info">
+                <div class="info-row">
+                    <span class="info-label">Uptime:</span>
+                    <span class="info-value" id="uptime">Initializing...</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Active Cameras:</span>
+                    <span class="info-value" id="activeCameras">0</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Threats Detected Today:</span>
+                    <span class="info-value" id="threatsToday">0</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Critical Alerts:</span>
+                    <span class="info-value" id="criticalAlerts" style="color: #ff3333;">0</span>
+                </div>
+            </div>
+
+            <!-- STATS GRID -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-label">Total Alerts</div>
+                    <div class="stat-value" id="totalAlerts">0</div>
+                </div>
+                <div class="stat-card critical">
+                    <div class="stat-label">Critical</div>
+                    <div class="stat-value" id="criticalCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">High Priority</div>
+                    <div class="stat-value" id="highCount">0</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-label">Detectors Active</div>
+                    <div class="stat-value" id="detectorsActive">4</div>
+                </div>
+            </div>
+
+            <!-- VIDEO GRID -->
+            <div class="video-grid" id="videoGrid">
+                <div class="video-card">
+                    <div class="video-header">
+                        <span class="camera-name">CAM_01</span>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <span class="frame-count" id="frameCount0">0 fps</span>
+                            <span class="camera-status">
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: #00ff00;"></span>
+                                Live
+                            </span>
+                        </div>
+                    </div>
+                    <div class="video-container">
+                        <canvas class="video-canvas" id="canvas0"></canvas>
+                    </div>
+                    <div class="video-controls">
+                        <button class="btn" onclick="startCamera(0)">Start</button>
+                        <button class="btn" onclick="stopCamera(0)">Stop</button>
+                        <button class="btn danger" onclick="testAlert(0)">Test Alert</button>
+                    </div>
+                </div>
+
+                <div class="video-card">
+                    <div class="video-header">
+                        <span class="camera-name">CAM_02</span>
+                        <div style="display: flex; gap: 1rem; align-items: center;">
+                            <span class="frame-count" id="frameCount1">0 fps</span>
+                            <span class="camera-status">
+                                <span style="width: 8px; height: 8px; border-radius: 50%; background: #ff6600;"></span>
+                                Offline
+                            </span>
+                        </div>
+                    </div>
+                    <div class="video-container">
+                        <canvas class="video-canvas" id="canvas1"></canvas>
+                    </div>
+                    <div class="video-controls">
+                        <button class="btn" onclick="startCamera(1)">Start</button>
+                        <button class="btn" onclick="stopCamera(1)">Stop</button>
+                        <button class="btn danger" onclick="testAlert(1)">Test Alert</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <!-- ALERTS PANEL -->
+            <div class="alerts-panel">
+                <div class="alerts-title">⚠️ Recent Alerts</div>
+                <div id="alertsList">
+                    <p style="color: #888; text-align: center; padding: 2rem 0;">No alerts yet...</p>
+                </div>
+            </div>
+
+            <!-- DETECTOR STATUS -->
+            <div class="sidebar-card">
+                <div class="sidebar-title">Detector Status</div>
+                <div class="detector-status">
+                    <span class="detector-name">Shoplifting Detection</span>
+                    <span class="detector-active"></span>
+                </div>
+                <div class="detector-status">
+                    <span class="detector-name">Fall Detection</span>
+                    <span class="detector-active"></span>
+                </div>
+                <div class="detector-status">
+                    <span class="detector-name">Assault Detection</span>
+                    <span class="detector-active"></span>
+                </div>
+                <div class="detector-status">
+                    <span class="detector-name">Crowd Analysis</span>
+                    <span class="detector-active"></span>
+                </div>
+            </div>
+
+            <!-- MODELS INFO -->
+            <div class="sidebar-card">
+                <div class="sidebar-title">AI Models</div>
+                <div class="detector-status">
+                    <span class="detector-name">MediaPipe Pose</span>
+                    <span class="detector-active"></span>
+                </div>
+                <div class="detector-status">
+                    <span class="detector-name">YOLO Detection</span>
+                    <span class="detector-active"></span>
+                </div>
+                <div class="detector-status">
+                    <span class="detector-name">CNN Classifier</span>
+                    <span class="detector-active"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT -->
+    <script>
+        // Global state
+        const state = {
+            cameras: {},
+            alerts: [],
+            frameCount: [0, 0],
+            connected: [false, false],
+            startTime: Date.now()
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initUI();
+            fetchStats();
+            setInterval(updateUptime, 1000);
+            setInterval(fetchStats, 5000);
+        });
+
+        function initUI() {
+            console.log('ThreatSense UI Initialized');
+            // Setup can be extended here
+        }
+
+        function updateUptime() {
+            const uptime = Date.now() - state.startTime;
+            const hours = Math.floor(uptime / 3600000);
+            const minutes = Math.floor((uptime % 3600000) / 60000);
+            document.getElementById('uptime').textContent = `${hours}h ${minutes}m`;
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/statistics');
+                const data = await response.json();
+                
+                document.getElementById('totalAlerts').textContent = data.total_alerts;
+                document.getElementById('criticalCount').textContent = data.critical_alerts;
+                document.getElementById('highCount').textContent = data.high_alerts;
+                document.getElementById('threatsToday').textContent = data.total_alerts;
+                document.getElementById('criticalAlerts').textContent = data.critical_alerts;
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        function startCamera(index) {
+            console.log(`Starting camera ${index}`);
+            const canvas = document.getElementById(`canvas${index}`);
+            const ctx = canvas.getContext('2d');
+            
+            // Display demo frame
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#00d4ff';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Camera Feed Ready', canvas.width / 2, canvas.height / 2);
+            
+            // In production, this would start WebSocket
+            state.connected[index] = true;
+            console.log(`Camera ${index} started`);
+        }
+
+        function stopCamera(index) {
+            console.log(`Stopping camera ${index}`);
+            state.connected[index] = false;
+        }
+
+        function testAlert(index) {
+            const alerts = [
+                {
+                    threat_type: 'Shoplifting Detected',
+                    threat_message: 'Suspicious hand movement towards pocket',
+                    threat_score: 75,
+                    threat_level: 'HIGH'
+                },
+                {
+                    threat_type: 'Person Fell',
+                    threat_message: 'Person detected in horizontal position',
+                    threat_score: 95,
+                    threat_level: 'CRITICAL'
+                },
+                {
+                    threat_type: 'Assault Detected',
+                    threat_message: 'Multi-person violent interaction detected',
+                    threat_score: 85,
+                    threat_level: 'CRITICAL'
+                }
+            ];
+            
+            const alert = alerts[Math.floor(Math.random() * alerts.length)];
+            addAlert({
+                detector: 'Demo Detector',
+                ...alert
+            }, index);
+            
+            // Highlight camera
+            const card = document.querySelectorAll('.video-card')[index];
+            card.classList.add('alert');
+            setTimeout(() => card.classList.remove('alert'), 3000);
+        }
+
+        function addAlert(alert, cameraIndex) {
+            const alertsList = document.getElementById('alertsList');
+            
+            // Remove "no alerts" message
+            if (alertsList.querySelector('p')) {
+                alertsList.innerHTML = '';
+            }
+            
+            const alertEl = document.createElement('div');
+            alertEl.className = `alert-item ${alert.threat_level.toLowerCase()}`;
+            alertEl.innerHTML = `
+                <div class="alert-threat-type">${alert.threat_type}</div>
+                <div class="alert-message">${alert.threat_message}</div>
+                <div class="alert-score">Threat: ${alert.threat_score}/100</div>
+                <div class="alert-time">Just now</div>
+            `;
+            
+            alertsList.insertBefore(alertEl, alertsList.firstChild);
+            
+            // Keep only last 10 alerts
+            while (alertsList.children.length > 10) {
+                alertsList.removeChild(alertsList.lastChild);
+            }
+        }
+
+        // Setup demo: add initial alert
+        setTimeout(() => {
+            const demoAlert = {
+                threat_type: 'System Ready',
+                threat_message: 'All detectors initialized and monitoring',
+                threat_score: 0,
+                threat_level: 'low'
+            };
+            addAlert(demoAlert, 0);
+        }, 1000);
+    </script>
+</body>
+</html>
